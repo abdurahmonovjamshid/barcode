@@ -8,9 +8,9 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from conf.settings import HOST, TELEGRAM_BOT_TOKEN
 
-from telebot import types
 from .models import TgUser
 from bot.tools import generate_pdf
+from conf.settings import ADMINS, GROUPS
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
 
@@ -66,11 +66,26 @@ def telegram_webhook(request):
 @bot.message_handler(commands=['start'])
 def start_handler(message):
     try:
-        response_message = f"Salom, {message.from_user.full_name}!😊 \nSalid cable barkodlarni qayta chiqarish botiga xush kelibbsiz"
-        bot.send_photo(chat_id=message.chat.id, photo='https://avatars.mds.yandex.net/get-altay/13322921/2a000001939a62b04c38cd1dea61ddc772ef/XXL_height',
-                       caption=response_message)
+        response_message = f"Salom, {message.from_user.full_name}! 😊\nSalid kabel barkodlarini qayta chiqarish botiga xush kelibsiz."
+
+        if message.chat.type == 'private':
+            # Send welcome message in private
+            bot.send_photo(
+                chat_id=message.chat.id,
+                photo='https://avatars.mds.yandex.net/get-altay/13322921/2a000001939a62b04c38cd1dea61ddc772ef/XXL_height',
+                caption=response_message
+            )
+        else:
+            # Send to group: mention user and group name
+            group_message = (
+                f"👤 User: {message.from_user.full_name} (ID: {message.from_user.id})\n"
+                f"💬 Guruh: {message.chat.title} (ID: {message.chat.id})"
+            )
+            bot.send_message(chat_id=message.chat.id, text=group_message)
     except Exception as e:
+        print("⚠️ Error in /start handler:")
         print(e)
+
 
 pattern = r'code\s*:\s*(\S+)\s+metr\s*:\s*(\S+)\s+kg\s*:\s*(\S+)\s+barkod\s*:\s*(\S+)'
 
@@ -78,19 +93,21 @@ pattern = r'code\s*:\s*(\S+)\s+metr\s*:\s*(\S+)\s+kg\s*:\s*(\S+)\s+barkod\s*:\s*
 @bot.message_handler(content_types=['text', 'media', 'photo'])
 def handle_message(message):
     try:
-        content = message.caption if message.caption else message.text
-        if not content:
-            return
-
-        match = re.search(pattern, content, re.IGNORECASE)
-        if match:
-            code, metr, kg, barkod = match.groups()
-            pdf = generate_pdf(code, metr, kg, barkod)
-            bot.send_document(message.chat.id, pdf, visible_file_name=f"{code}_etiket.pdf")
+        if str(message.from_user.id) in ADMINS or str(message.chat.id) in GROUPS:
+            content = message.caption if message.caption else message.text
+            if not content:
+                return
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                code, metr, kg, barkod = match.groups()
+                pdf = generate_pdf(code, metr, kg, barkod)
+                bot.send_document(message.chat.id, pdf, visible_file_name=f"{code}_etiket.pdf")
+            else:
+                if message.chat.type == 'private':
+                    bot.reply_to(message,
+                        "Format noto‘g‘ri. Iltimos, quyidagicha yuboring:\n\ncode : GPC1569\nmetr : 150\nkg : 7.00\nbarkod : 100016689")
         else:
-            if message.chat.type == 'private':
-                bot.reply_to(message,
-                    "Format noto‘g‘ri. Iltimos, quyidagicha yuboring:\n\ncode : GPC1569\nmetr : 150\nkg : 7.00\nbarkod : 100016689")
+            bot.reply_to(message,"Admin emassiz")
     except Exception as e:
         print("⚠️ Exception occurred in handle_message:")
         print(e)

@@ -34,7 +34,6 @@ def generate_pdf(code, metr, kg, barkod):
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=(label_width, label_height))
 
-    # Get cable name from map
     code_name = CABLE_NAME_MAP.get(code, "NOMA'LUM")
 
     # Layout constants
@@ -45,16 +44,23 @@ def generate_pdf(code, metr, kg, barkod):
     y_start = label_height - padding_top
     line_height = 10
 
-    # Draw left text block
-    c.setFont("DejaVuSans", 8)
+    # Use slightly larger font size
+    font_size = 9
+    c.setFont("DejaVuSans", font_size)
+
+    def draw_bold_text(x, y, text):
+        # Fake bold effect by drawing twice with small offset
+        c.drawString(x, y, text)
+        c.drawString(x + 0.2, y, text)
+
     y = y_start
-    c.drawString(x_text, y, f"Tovar kodi : {code}")
+    draw_bold_text(x_text, y, f"Tovar kodi : {code}")
     y -= line_height
-    c.drawString(x_text, y, code_name)
+    draw_bold_text(x_text, y, code_name)
     y -= line_height
-    c.drawString(x_text, y, f"Uzunligi : {metr}")
+    draw_bold_text(x_text, y, f"Uzunligi : {metr}")
     y -= line_height
-    c.drawString(x_text, y, f"Og'irligi : {kg}")
+    draw_bold_text(x_text, y, f"Og'irligi : {kg}")
 
     # Generate QR code
     qr_size = 1.5 * cm
@@ -63,18 +69,16 @@ def generate_pdf(code, metr, kg, barkod):
     qr_y = label_height - padding_top - qr_size
     c.drawInlineImage(qr_img, qr_x, qr_y, width=qr_size, height=qr_size)
 
-    # Draw barcode number under QR
-    c.setFont("DejaVuSans", 8)
-    barcode_y = qr_y - 12
-    c.drawCentredString(qr_x + qr_size / 2, barcode_y, barkod)
+    # Barcode number under QR
+    c.setFont("DejaVuSans", 9)
+    c.drawCentredString(qr_x + qr_size / 2, qr_y - 12, barkod)
 
-    # Draw optional border
     c.rect(0, 0, label_width, label_height)
 
-    # Finalize PDF
     c.save()
     buffer.seek(0)
     return buffer
+
 
 # Example usage (for testing):
 if __name__ == "__main__":

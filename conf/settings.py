@@ -19,7 +19,8 @@ env = Env()
 env.read_env()
 
 TELEGRAM_BOT_TOKEN = env.str('TELEGRAM_BOT_TOKEN')
-# ADMINS = env.list('ADMINS')
+ADMINS = env.list('ADMINS')
+GROUPS = env.list('GROUPS')
 # ADMINS2 = env.list('ADMINS2')
 # CHANNEL_ID = env.list('CHANNEL_ID')
 
