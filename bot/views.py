@@ -2,11 +2,16 @@
 import json
 import traceback
 import telebot
+import re
+
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from conf.settings import HOST, TELEGRAM_BOT_TOKEN
 
+from telebot import types
 from .models import TgUser
+from bot.tools import generate_pdf
+
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
 
 @csrf_exempt
@@ -66,5 +71,39 @@ def start_handler(message):
                        caption=response_message)
     except Exception as e:
         print(e)
+
+pattern = r'code\s*:\s*(\S+)\s+metr\s*:\s*(\S+)\s+kg\s*:\s*(\S+)\s+barkod\s*:\s*(\S+)'
+
+
+@bot.message_handler(content_types=['text', 'media', 'photo'])
+def handle_message(message):
+    try:
+        content = message.caption if message.caption else message.text
+        if not content:
+            return
+
+        match = re.search(pattern, content, re.IGNORECASE)
+        if match:
+            code, metr, kg, barkod = match.groups()
+            pdf = generate_pdf(code, metr, kg, barkod)
+            bot.send_document(message.chat.id, pdf, visible_file_name=f"{code}_etiket.pdf")
+        else:
+            if message.chat.type == 'private':
+                bot.reply_to(message,
+                    "Format noto‘g‘ri. Iltimos, quyidagicha yuboring:\n\ncode : GPC1569\nmetr : 150\nkg : 7.00\nbarkod : 100016689")
+    except Exception as e:
+        print("⚠️ Exception occurred in handle_message:")
+        print(e)
+        import traceback
+        traceback.print_exc()
+
+
+    except Exception as e:
+        print("⚠️ Exception occurred in handle_message:")
+        print(e)
+        import traceback
+        traceback.print_exc()
+
+
 
 bot.set_webhook(url="https://"+HOST+"/webhook/")
