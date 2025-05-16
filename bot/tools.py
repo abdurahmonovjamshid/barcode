@@ -79,10 +79,62 @@ def generate_pdf(code, metr, kg, barkod):
     buffer.seek(0)
     return buffer
 
+def generate_custom_label(text: str):
+    # Validate and split the input
+    if not text or "-" not in text:
+        raise ValueError("Invalid input format. Expected ****-**")
 
-# Example usage (for testing):
+    left, right = text.strip().split("-")
+    if not (left.isdigit() and right.isdigit()):
+        raise ValueError("Both parts must be numeric.")
+
+    label_width = 6 * cm
+    label_height = 2.8 * cm
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=(label_width, label_height))
+
+    # Layout settings
+    padding = 5 * mm
+    qr_size = 2.2 * cm
+    font_size = 11
+    line_height = font_size + 2  # spacing between lines
+
+    # Set font larger for left side text
+    c.setFont("DejaVuSans", font_size)
+
+    # Calculate total text block height (2 lines)
+    text_block_height = 2 * line_height
+    y_text_start = (label_height + text_block_height) / 2 - line_height
+
+    x_left = padding
+    y = y_text_start
+    c.drawString(x_left, y, left)
+    y -= line_height
+    c.drawString(x_left, y, f"Razmer : {right}")
+
+    # Generate QR code for only the left part
+    qr_img = qrcode.make(left)
+    qr_x = label_width - qr_size - padding
+    qr_y = (label_height - qr_size) / 2
+    c.drawInlineImage(qr_img, qr_x, qr_y, width=qr_size, height=qr_size)
+
+    # Optional: border
+    c.rect(0, 0, label_width, label_height)
+
+    c.save()
+    buffer.seek(0)
+    return buffer
+
+
+
+
 if __name__ == "__main__":
-    pdf = generate_pdf("GPC0040", "150", "7.00", "100016689", CABLE_NAME_MAP)
+    pdf = generate_pdf("GPC0040", "150", "7.00", "100016689")
     with open("example_label.pdf", "wb") as f:
         f.write(pdf.read())
     print("✅ Label PDF generated: example_label.pdf")
+
+    pdf = generate_custom_label("1234-56")
+    with open("example_label2.pdf", "wb") as f:
+        f.write(pdf.read())
+    print("✅ Label PDF generated: example_label2.pdf")

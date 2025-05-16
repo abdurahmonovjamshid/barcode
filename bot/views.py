@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from conf.settings import HOST, TELEGRAM_BOT_TOKEN
 
 from .models import TgUser
-from bot.tools import generate_pdf
+from bot.tools import generate_pdf, generate_custom_label
 from conf.settings import ADMINS, GROUPS
 
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN, threaded=False)
@@ -86,9 +86,11 @@ def start_handler(message):
         print("⚠️ Error in /start handler:")
         print(e)
 
-
+# First pattern (full product info)
 pattern = r'code\s*:\s*(\S+)\s+metr\s*:\s*(\S+)\s+kg\s*:\s*(\S+)\s+barkod\s*:\s*(\S+)'
 
+# Second pattern (short code format like 1234-56)
+pattern2 = r'^\d{4}-\d{2}$'  # matches exactly 4 digits, dash, 2 digits
 
 @bot.message_handler(content_types=['text', 'media', 'photo'])
 def handle_message(message):
@@ -97,30 +99,34 @@ def handle_message(message):
             content = message.caption if message.caption else message.text
             if not content:
                 return
+
             match = re.search(pattern, content, re.IGNORECASE)
+            match2 = re.search(pattern2, content.strip())
+
             if match:
                 code, metr, kg, barkod = match.groups()
                 pdf = generate_pdf(code, metr, kg, barkod)
                 bot.send_document(message.chat.id, pdf, visible_file_name=f"{code}_etiket.pdf")
+
+            elif match2:
+                pdf = generate_custom_label(content.strip())
+                bot.send_document(message.chat.id, pdf, visible_file_name="label.pdf")
+
             else:
                 if message.chat.type == 'private':
-                    bot.reply_to(message,
-                        "Format noto‘g‘ri. Iltimos, quyidagicha yuboring:\n\ncode : GPC1569\nmetr : 150\nkg : 7.00\nbarkod : 100016689")
+                    bot.reply_to(
+                        message,
+                        "Format noto‘g‘ri. Iltimos, quyidagicha yuboring:\n\n"
+                        "code : GPC1569\nmetr : 150\nkg : 7.00\nbarkod : 100016689\n\n"
+                        "yoki\n\n1234-56"
+                    )
         else:
-            bot.reply_to(message,"Admin emassiz")
-    except Exception as e:
-        print("⚠️ Exception occurred in handle_message:")
-        print(e)
-        import traceback
-        traceback.print_exc()
-
+            bot.reply_to(message, "Admin emassiz")
 
     except Exception as e:
         print("⚠️ Exception occurred in handle_message:")
-        print(e)
         import traceback
         traceback.print_exc()
-
 
 
 bot.set_webhook(url="https://"+HOST+"/webhook/")
