@@ -125,8 +125,41 @@ def generate_custom_label(text: str):
     buffer.seek(0)
     return buffer
 
+def generate_custom_label_page(c, text: str):
+    if not text or "-" not in text:
+        return
 
+    left, right = text.strip().split("-")
+    if not (left.isdigit() and right.isdigit()):
+        return
 
+    # Layout
+    label_width = 6 * cm
+    label_height = 2.8 * cm
+    padding = 5 * mm
+    qr_size = 2.2 * cm
+    font_size = 11
+    line_height = font_size + 2
+
+    # Text block vertical center
+    text_block_height = 2 * line_height
+    y_text_start = (label_height + text_block_height) / 2 - line_height
+
+    x_left = padding
+    y = y_text_start
+    c.setFont("DejaVuSans", font_size)
+    c.drawString(x_left, y, left)
+    y -= line_height
+    c.drawString(x_left, y, f"Razmer : {right}")
+
+    # QR code (left only)
+    qr_img = qrcode.make(left)
+    qr_x = label_width - qr_size - padding
+    qr_y = (label_height - qr_size) / 2
+    c.drawInlineImage(qr_img, qr_x, qr_y, width=qr_size, height=qr_size)
+
+    # Optional border
+    c.rect(0, 0, label_width, label_height)
 
 if __name__ == "__main__":
     pdf = generate_pdf("GPC0040", "150", "7.00", "100016689")
