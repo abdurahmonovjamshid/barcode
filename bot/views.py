@@ -10,6 +10,7 @@ from django.views.decorators.csrf import csrf_exempt
 from conf.settings import HOST, TELEGRAM_BOT_TOKEN
 from PyPDF2 import PdfMerger
 from openpyxl import Workbook
+from telebot.types import ReactionTypeEmoji
 
 from .models import TgUser
 from bot.tools import generate_pdf, generate_custom_label, generate_custom_label_page
@@ -235,6 +236,12 @@ def handle_message(message):
                 code, metr, kg, barkod = match.groups()
                 pdf = generate_pdf(code, metr, kg, barkod)
                 bot.send_document(message.chat.id, pdf, visible_file_name=f"{code}_etiket.pdf")
+                bot.set_message_reaction(
+                    chat_id=message.chat.id,
+                    message_id=message.message_id,
+                    reaction=[ReactionTypeEmoji('👍')],
+                    is_big=False
+                )
 
             elif match2:
                 user_id = message.from_user.id
@@ -244,6 +251,15 @@ def handle_message(message):
                 else:
                     pdf = generate_custom_label(content.strip())
                     bot.send_document(message.chat.id, pdf, visible_file_name="label.pdf")
+                try:
+                    bot.set_message_reaction(
+                        chat_id=message.chat.id,
+                        message_id=message.message_id,
+                        reaction=[ReactionTypeEmoji('👍')],
+                        is_big=False
+                    )
+                except Exception as e:
+                    bot.reply_to(message, f"Failed to react: {e}")
 
             else:
                 if message.chat.type == 'private':
